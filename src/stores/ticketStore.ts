@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type { Ticket } from '@/types';
 import { mockTickets } from '@/mock/data';
 import { mockCapabilities } from '@/mock/data';
@@ -22,13 +23,15 @@ interface TicketState {
   setSubmittedTicketId: (id: string | null) => void;
 }
 
-export const useTicketStore = create<TicketState>((set, get) => ({
-  tickets: mockTickets,
-  currentTicket: null,
-  loading: false,
-  submittedTicketId: null,
-  fetchCapabilities: () => {},
-  capabilities: mockCapabilities,
+export const useTicketStore = create<TicketState>()(
+  persist(
+    (set, get) => ({
+      tickets: mockTickets,
+      currentTicket: null,
+      loading: false,
+      submittedTicketId: null,
+      fetchCapabilities: () => {},
+      capabilities: mockCapabilities,
   fetchTickets: async () => {
     set({ loading: true });
     try {
@@ -113,4 +116,12 @@ export const useTicketStore = create<TicketState>((set, get) => ({
     return updatedTicket;
   },
   setSubmittedTicketId: (id) => set({ submittedTicketId: id })
-}));
+}),
+{
+  name: 'ticket-storage',
+  partialize: (state) => ({
+    tickets: state.tickets,
+    submittedTicketId: state.submittedTicketId
+  })
+}
+));

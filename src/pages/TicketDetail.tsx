@@ -39,8 +39,16 @@ export function TicketDetail() {
   }
 
   const handleAssign = async () => {
+    const realAssignee = {
+      id: 'staff-001',
+      name: '李对接',
+      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=liduijie',
+      phone: '13900139000'
+    };
+    
     await updateTicket(ticket.id, {
       status: 'assigned',
+      assignee: realAssignee,
       timeline: [
         ...ticket.timeline,
         {

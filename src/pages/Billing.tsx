@@ -152,7 +152,7 @@ export function Billing() {
               <div>
                 <div className="text-xs text-gray-400">已上线能力</div>
                 <div className="text-xl font-bold text-[#1E3A5F]">
-                  {capabilities.filter(c => c.status === 'active' || c.status === 'applied').length}
+                  {capabilities.filter(c => c.status === 'active').length}
                 </div>
               </div>
             </div>

@@ -62,7 +62,25 @@ export const useBillStore = create<BillState>()(
         }
       },
       addRenewRecord: (capabilityId, capabilityName, period, amount) => {
+        const currentDate = new Date();
+        const periodText = `${currentDate.getFullYear()}年${currentDate.getMonth() + 1}月`;
+        
+        const newBill: Bill = {
+          id: `bill-renew-${Date.now()}`,
+          enterpriseId: 'ent-001',
+          capabilityId,
+          capabilityName,
+          period: periodText,
+          quota: amount,
+          usedQuota: 0,
+          amount,
+          status: 'paid',
+          paidAt: new Date().toISOString(),
+          createdAt: new Date().toISOString()
+        };
+        
         set({
+          bills: [newBill, ...get().bills],
           renewHistory: [...get().renewHistory, { 
             capabilityId, 
             capabilityName, 

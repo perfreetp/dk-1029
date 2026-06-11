@@ -211,7 +211,7 @@ export function Home() {
           />
           <CardContent>
             <div className="space-y-12">
-              {tickets.slice(0, 3).map((ticket) => (
+              {[...tickets].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 3).map((ticket) => (
                 <Link
                   key={ticket.id}
                   to={`/tickets/${ticket.id}`}

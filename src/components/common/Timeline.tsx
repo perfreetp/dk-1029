@@ -10,12 +10,13 @@ interface TimelineProps {
 }
 
 export function Timeline({ items, currentStatus, className }: TimelineProps) {
+  const completedStatuses = ['submitted', 'pending_assign', 'assigned', 'testing', 'reviewing', 'approved'];
+
   const getStatusIcon = (status: string, isCurrent: boolean) => {
     if (isCurrent) {
       return <Clock className="w-20 h-20 text-[#38B2AC]" />;
     }
     
-    const completedStatuses = ['submitted', 'assigned', 'testing', 'reviewing', 'approved'];
     if (completedStatuses.includes(status)) {
       return <CheckCircle className="w-20 h-20 text-green-500" />;
     }
@@ -26,7 +27,6 @@ export function Timeline({ items, currentStatus, className }: TimelineProps) {
   const getStatusColor = (status: string, isCurrent: boolean) => {
     if (isCurrent) return 'bg-[#38B2AC]';
     
-    const completedStatuses = ['submitted', 'assigned', 'testing', 'reviewing', 'approved'];
     if (completedStatuses.includes(status)) return 'bg-green-500';
     
     return 'bg-gray-300';
@@ -35,6 +35,7 @@ export function Timeline({ items, currentStatus, className }: TimelineProps) {
   const statusTexts: Record<string, string> = {
     draft: '草稿',
     submitted: '已提交',
+    pending_assign: '待分配',
     assigned: '已分配对接人',
     testing: '测试中',
     reviewing: '验收审核中',
