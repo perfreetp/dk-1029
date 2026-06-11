@@ -22,10 +22,16 @@ import {
 import { formatDateTime } from '@/utils/format';
 import type { Feedback } from '@/types';
 
+interface FeedbackRating {
+  feedbackId: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+}
+
 export function FeedbackPage() {
-  const { feedbacks, createFeedback } = useFeedbackStore();
+  const { feedbacks, createFeedback, setCurrentFeedback, currentFeedback, ratings, addRating } = useFeedbackStore();
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [selectedFeedback, setSelectedFeedback] = useState<Feedback | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [formData, setFormData] = useState({
@@ -35,6 +41,7 @@ export function FeedbackPage() {
     files: [] as File[]
   });
   const [showRatingModal, setShowRatingModal] = useState(false);
+  const [ratingFeedbackId, setRatingFeedbackId] = useState<string | null>(null);
   const [rating, setRating] = useState(0);
   const [ratingComment, setRatingComment] = useState('');
 
@@ -54,19 +61,50 @@ export function FeedbackPage() {
     setFormData({ type: 'technical', title: '', description: '', files: [] });
   };
 
+  const handleOpenRating = (feedbackId: string) => {
+    setRatingFeedbackId(feedbackId);
+    const existingRating = ratings[feedbackId];
+    if (existingRating) {
+      setRating(existingRating.rating);
+      setRatingComment(existingRating.comment);
+    } else {
+      setRating(0);
+      setRatingComment('');
+    }
+    setShowRatingModal(true);
+  };
+
   const handleRatingSubmit = () => {
+    if (ratingFeedbackId && rating > 0) {
+      addRating(ratingFeedbackId, rating, ratingComment);
+    }
     setShowRatingModal(false);
-    setRating(0);
-    setRatingComment('');
+  };
+
+  const handleViewDetail = (feedback: Feedback) => {
+    setCurrentFeedback(feedback);
+  };
+
+  const getFeedbackRating = (feedbackId: string) => {
+    return ratings[feedbackId];
   };
 
   const columns = [
     {
       key: 'title',
       title: '问题标题',
-      render: (value: unknown) => (
-        <span className="text-sm font-medium text-[#1E3A5F]">{String(value)}</span>
-      )
+      render: (value: unknown, record) => {
+        const fb = record as Feedback;
+        const fbRating = getFeedbackRating(fb.id);
+        return (
+          <div className="flex items-center gap-8">
+            <span className="text-sm font-medium text-[#1E3A5F]">{String(value)}</span>
+            {fbRating && (
+              <RatingDisplay value={fbRating.rating} showValue={false} size="sm" />
+            )}
+          </div>
+        );
+      }
     },
     {
       key: 'type',
@@ -130,15 +168,31 @@ export function FeedbackPage() {
       key: 'actions',
       title: '操作',
       align: 'right',
-      render: (_, record) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setSelectedFeedback(record as Feedback)}
-        >
-          查看详情
-        </Button>
-      )
+      render: (_, record) => {
+        const fb = record as Feedback;
+        const fbRating = getFeedbackRating(fb.id);
+        return (
+          <div className="flex items-center gap-8">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleViewDetail(fb)}
+            >
+              查看详情
+            </Button>
+            {fb.status === 'resolved' && !fbRating && (
+              <Button
+                variant="outline"
+                size="sm"
+                icon={<Star className="w-14 h-14" />}
+                onClick={() => handleOpenRating(fb.id)}
+              >
+                评价
+              </Button>
+            )}
+          </div>
+        );
+      }
     }
   ];
 
@@ -247,48 +301,51 @@ export function FeedbackPage() {
       </Modal>
 
       <Modal
-        open={selectedFeedback !== null}
-        onClose={() => setSelectedFeedback(null)}
+        open={currentFeedback !== null}
+        onClose={() => setCurrentFeedback(null)}
         title="反馈详情"
         width="md"
         footer={
-          selectedFeedback?.status === 'resolved' ? (
+          currentFeedback?.status === 'resolved' && !getFeedbackRating(currentFeedback.id) ? (
             <Button
               variant="primary"
               icon={<Star className="w-16 h-16" />}
-              onClick={() => setShowRatingModal(true)}
+              onClick={() => {
+                setCurrentFeedback(null);
+                handleOpenRating(currentFeedback!.id);
+              }}
             >
               评价服务
             </Button>
           ) : null
         }
       >
-        {selectedFeedback && (
+        {currentFeedback && (
           <div className="space-y-16">
             <div className="grid grid-cols-2 gap-16">
               <div className="p-16 bg-[#F7FAFC] rounded-8">
                 <div className="text-xs text-gray-400 mb-4">问题类型</div>
                 <span className={`
                   px-12 py-4 rounded-4 text-xs
-                  ${selectedFeedback.type === 'technical' ? 'bg-blue-100 text-blue-700' :
-                    selectedFeedback.type === 'business' ? 'bg-green-100 text-green-700' :
-                    selectedFeedback.type === 'billing' ? 'bg-yellow-100 text-yellow-700' :
+                  ${currentFeedback.type === 'technical' ? 'bg-blue-100 text-blue-700' :
+                    currentFeedback.type === 'business' ? 'bg-green-100 text-green-700' :
+                    currentFeedback.type === 'billing' ? 'bg-yellow-100 text-yellow-700' :
                     'bg-gray-100 text-gray-700'}
                 `}>
-                  {selectedFeedback.type === 'technical' ? '技术问题' :
-                    selectedFeedback.type === 'business' ? '业务问题' :
-                    selectedFeedback.type === 'billing' ? '账单问题' : '其他'}
+                  {currentFeedback.type === 'technical' ? '技术问题' :
+                    currentFeedback.type === 'business' ? '业务问题' :
+                    currentFeedback.type === 'billing' ? '账单问题' : '其他'}
                 </span>
               </div>
               <div className="p-16 bg-[#F7FAFC] rounded-8">
                 <div className="text-xs text-gray-400 mb-4">当前状态</div>
-                <StatusBadge status={selectedFeedback.status} />
+                <StatusBadge status={currentFeedback.status} />
               </div>
             </div>
 
             <div className="p-16 bg-gray-50 rounded-8">
-              <div className="text-sm font-medium text-[#1E3A5F] mb-8">{selectedFeedback.title}</div>
-              <p className="text-sm text-gray-600">{selectedFeedback.description}</p>
+              <div className="text-sm font-medium text-[#1E3A5F] mb-8">{currentFeedback.title}</div>
+              <p className="text-sm text-gray-600">{currentFeedback.description}</p>
             </div>
 
             <div className="p-16 bg-[#F7FAFC] rounded-8">
@@ -300,23 +357,38 @@ export function FeedbackPage() {
                 <div className="flex items-center gap-8">
                   <CheckCircle className="w-16 h-16 text-green-500" />
                   <span className="text-sm text-gray-600">已提交</span>
-                  <span className="text-xs text-gray-400">{formatDateTime(selectedFeedback.createdAt)}</span>
+                  <span className="text-xs text-gray-400">{formatDateTime(currentFeedback.createdAt)}</span>
                 </div>
-                {selectedFeedback.assignee && (
+                {currentFeedback.assignee && (
                   <div className="flex items-center gap-8">
                     <User className="w-16 h-16 text-blue-500" />
-                    <span className="text-sm text-gray-600">已分配：{selectedFeedback.assignee}</span>
+                    <span className="text-sm text-gray-600">已分配：{currentFeedback.assignee}</span>
                   </div>
                 )}
-                {selectedFeedback.status === 'resolved' && selectedFeedback.resolvedAt && (
+                {currentFeedback.status === 'resolved' && currentFeedback.resolvedAt && (
                   <div className="flex items-center gap-8">
                     <CheckCircle className="w-16 h-16 text-green-500" />
                     <span className="text-sm text-gray-600">已解决</span>
-                    <span className="text-xs text-gray-400">{formatDateTime(selectedFeedback.resolvedAt)}</span>
+                    <span className="text-xs text-gray-400">{formatDateTime(currentFeedback.resolvedAt)}</span>
                   </div>
                 )}
               </div>
             </div>
+
+            {getFeedbackRating(currentFeedback.id) && (
+              <div className="p-16 bg-yellow-50 rounded-8">
+                <div className="flex items-center gap-8 mb-8">
+                  <Star className="w-16 h-16 text-yellow-500" />
+                  <span className="text-sm font-medium text-yellow-700">本次评分</span>
+                </div>
+                <RatingDisplay value={getFeedbackRating(currentFeedback.id)!.rating} />
+                {getFeedbackRating(currentFeedback.id)!.comment && (
+                  <p className="text-sm text-gray-600 mt-8">
+                    {getFeedbackRating(currentFeedback.id)!.comment}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         )}
       </Modal>

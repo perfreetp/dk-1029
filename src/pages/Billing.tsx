@@ -5,7 +5,8 @@ import { StatusBadge } from '@/components/common/Badge';
 import { Table } from '@/components/common/Table';
 import { Progress, CircularProgress } from '@/components/common/Progress';
 import { Modal } from '@/components/common/Modal';
-import { useBillStore } from '@/stores/dataStore';
+import { useBillStore, useFeedbackStore } from '@/stores/dataStore';
+import { useCapabilityStore } from '@/stores/capabilityStore';
 import { useState } from 'react';
 import {
   Receipt,
@@ -21,11 +22,16 @@ import { formatDateTime, formatCurrency } from '@/utils/format';
 import type { Bill } from '@/types';
 
 export function Billing() {
-  const { bills, quotaData, payBill } = useBillStore();
+  const { bills, payBill } = useBillStore();
+  const { quotaData, fetchFeedbacks } = useFeedbackStore();
+  const { capabilities, renewCapability, suspendCapability } = useCapabilityStore();
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
   const [showRenewModal, setShowRenewModal] = useState(false);
   const [showSuspendModal, setShowSuspendModal] = useState(false);
   const [renewPeriod, setRenewPeriod] = useState(1);
+  const [selectedCapabilityId, setSelectedCapabilityId] = useState<string | null>(null);
+  const [renewSuccess, setRenewSuccess] = useState<string | null>(null);
+  const [suspendSuccess, setSuspendSuccess] = useState<string | null>(null);
 
   const unpaidBills = bills.filter(b => b.status === 'unpaid' || b.status === 'overdue');
   const totalAmount = unpaidBills.reduce((sum, b) => sum + b.amount, 0);
@@ -33,6 +39,34 @@ export function Billing() {
   const handlePay = async (billId: string) => {
     await payBill(billId);
     setSelectedBill(null);
+  };
+
+  const handleRenew = () => {
+    if (selectedCapabilityId) {
+      renewCapability(selectedCapabilityId, renewPeriod);
+      setRenewSuccess(selectedCapabilityId);
+      setTimeout(() => setRenewSuccess(null), 3000);
+      setShowRenewModal(false);
+    }
+  };
+
+  const handleSuspend = () => {
+    if (selectedCapabilityId) {
+      suspendCapability(selectedCapabilityId);
+      setSuspendSuccess(selectedCapabilityId);
+      setTimeout(() => setSuspendSuccess(null), 3000);
+      setShowSuspendModal(false);
+    }
+  };
+
+  const openRenewModal = (capabilityId: string) => {
+    setSelectedCapabilityId(capabilityId);
+    setShowRenewModal(true);
+  };
+
+  const openSuspendModal = (capabilityId: string) => {
+    setSelectedCapabilityId(capabilityId);
+    setShowSuspendModal(true);
   };
 
   const columns = [
@@ -176,51 +210,76 @@ export function Billing() {
           <CardHeader title="配额概览" />
           <CardContent>
             <div className="grid grid-cols-3 gap-24">
-              {quotaData.map((item, index) => (
-                <div key={index} className="p-16 bg-[#F7FAFC] rounded-12">
-                  <div className="flex items-center justify-between mb-16">
-                    <span className="text-sm font-medium text-[#1E3A5F]">{item.name}</span>
-                    <CircularProgress
-                      value={item.used}
-                      max={item.quota}
-                      size={60}
-                      strokeWidth={6}
-                    />
-                  </div>
-                  <div className="space-y-8">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-gray-400">已使用</span>
-                      <span className="text-gray-600">{item.used.toLocaleString()}</span>
+              {capabilities.filter(cap => cap.status === 'active' || cap.status === 'applied').map((cap) => {
+                const quota = quotaData.find(q => q.capabilityId === cap.id);
+                const used = quota?.used || 0;
+                const total = quota?.quota || cap.quota;
+                const isRenewed = renewSuccess === cap.id;
+                const isSuspended = suspendSuccess === cap.id;
+                
+                return (
+                  <div key={cap.id} className="p-16 bg-[#F7FAFC] rounded-12 relative">
+                    {isRenewed && (
+                      <div className="absolute top-8 right-8 px-8 py-4 bg-green-100 text-green-700 text-xs rounded-full flex items-center gap-4">
+                        <CheckCircle className="w-12 h-12" />
+                        续费成功
+                      </div>
+                    )}
+                    {isSuspended && (
+                      <div className="absolute top-8 right-8 px-8 py-4 bg-red-100 text-red-700 text-xs rounded-full flex items-center gap-4">
+                        <AlertTriangle className="w-12 h-12" />
+                        已停用
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between mb-16">
+                      <span className="text-sm font-medium text-[#1E3A5F]">{cap.name}</span>
+                      <StatusBadge status={cap.status} />
                     </div>
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-gray-400">总配额</span>
-                      <span className="text-gray-600">{item.quota.toLocaleString()}</span>
+                    <div className="flex items-center justify-between mb-8">
+                      <CircularProgress
+                        value={used}
+                        max={total}
+                        size={60}
+                        strokeWidth={6}
+                      />
                     </div>
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-gray-400">剩余</span>
-                      <span className="text-[#38B2AC]">{(item.quota - item.used).toLocaleString()}</span>
+                    <div className="space-y-4 mb-16">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-gray-400">已使用</span>
+                        <span className="text-gray-600">{used.toLocaleString()}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-gray-400">总配额</span>
+                        <span className="text-gray-600">{total.toLocaleString()}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-gray-400">剩余</span>
+                        <span className="text-[#38B2AC]">{(total - used).toLocaleString()}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-8">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        icon={<RefreshCw className="w-14 h-14" />}
+                        onClick={() => openRenewModal(cap.id)}
+                        disabled={cap.status === 'suspended'}
+                      >
+                        续费
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        icon={<Power className="w-14 h-14" />}
+                        onClick={() => openSuspendModal(cap.id)}
+                        disabled={cap.status === 'suspended'}
+                      >
+                        停用
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-8 mt-16">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      icon={<RefreshCw className="w-14 h-14" />}
-                      onClick={() => setShowRenewModal(true)}
-                    >
-                      续费
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      icon={<Power className="w-14 h-14" />}
-                      onClick={() => setShowSuspendModal(true)}
-                    >
-                      停用
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>
@@ -308,7 +367,7 @@ export function Billing() {
         title="续费能力"
         width="sm"
         footer={
-          <Button variant="primary" onClick={() => setShowRenewModal(false)}>
+          <Button variant="primary" onClick={handleRenew}>
             确认续费
           </Button>
         }
@@ -346,7 +405,7 @@ export function Billing() {
         title="停用能力"
         width="sm"
         footer={
-          <Button variant="danger" onClick={() => setShowSuspendModal(false)}>
+          <Button variant="danger" onClick={handleSuspend}>
             确认停用
           </Button>
         }

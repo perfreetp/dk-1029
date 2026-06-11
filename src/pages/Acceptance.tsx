@@ -5,6 +5,7 @@ import { StatusBadge } from '@/components/common/Badge';
 import { Input, TextArea } from '@/components/common/Input';
 import { useTicketStore } from '@/stores/ticketStore';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Rocket,
   CheckCircle,
@@ -13,8 +14,7 @@ import {
   Link as LinkIcon,
   Shield,
   Clock,
-  FileText,
-  ArrowRight
+  FileText
 } from 'lucide-react';
 
 const checklistItems = [
@@ -27,7 +27,8 @@ const checklistItems = [
 ];
 
 export function Acceptance() {
-  const { tickets } = useTicketStore();
+  const navigate = useNavigate();
+  const { tickets, updateTicket } = useTicketStore();
   const testingTicket = tickets.find(t => t.status === 'testing');
   
   const [formData, setFormData] = useState({
@@ -37,6 +38,7 @@ export function Acceptance() {
   });
   const [checkedItems, setCheckedItems] = useState<string[]>([]);
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const handleCheckItem = (itemId: string) => {
     if (checkedItems.includes(itemId)) {
@@ -46,8 +48,35 @@ export function Acceptance() {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (!testingTicket) return;
+    
+    setSubmitting(true);
+    
+    await updateTicket(testingTicket.id, {
+      status: 'reviewing',
+      timeline: [
+        ...testingTicket.timeline,
+        {
+          id: `tl-${Date.now()}`,
+          status: 'reviewing',
+          operator: '张明',
+          comment: '提交上线验收申请',
+          timestamp: new Date().toISOString()
+        }
+      ]
+    });
+    
     setSubmitted(true);
+    setSubmitting(false);
+  };
+
+  const handleGoToTicket = () => {
+    if (testingTicket) {
+      navigate(`/tickets/${testingTicket.id}`);
+    } else {
+      navigate('/tickets');
+    }
   };
 
   const allRequiredChecked = checklistItems
@@ -95,13 +124,20 @@ export function Acceptance() {
                 <span>工单编号：{testingTicket.id}</span>
               </div>
             </div>
-            <Button
-              variant="primary"
-              className="mt-24"
-              onClick={() => navigate('/tickets')}
-            >
-              返回工单列表
-            </Button>
+            <div className="flex gap-12 mt-24">
+              <Button
+                variant="outline"
+                onClick={() => navigate('/sandbox')}
+              >
+                返回测试沙箱
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handleGoToTicket}
+              >
+                查看工单详情
+              </Button>
+            </div>
           </Card>
         </div>
       </Layout>
@@ -158,7 +194,7 @@ export function Acceptance() {
                   key={item.id}
                   className={`
                     flex items-start gap-16 p-16 rounded-8 border
-                    transition-all duration-200
+                    transition-all duration-200 cursor-pointer
                     ${checkedItems.includes(item.id)
                       ? 'border-green-200 bg-green-50'
                       : 'border-gray-100 hover:border-gray-200'
@@ -220,7 +256,8 @@ export function Acceptance() {
               variant="primary"
               icon={<Rocket className="w-16 h-16" />}
               onClick={handleSubmit}
-              disabled={!allRequiredChecked || !formData.serverUrl || !formData.callbackUrl}
+              disabled={!allRequiredChecked || !formData.serverUrl || !formData.callbackUrl || submitting}
+              loading={submitting}
             >
               提交验收申请
             </Button>
@@ -230,5 +267,3 @@ export function Acceptance() {
     </Layout>
   );
 }
-
-import { useNavigate } from 'react-router-dom';

@@ -3,7 +3,7 @@ import { Card, CardHeader, CardContent, CardFooter } from '@/components/common/C
 import { Button } from '@/components/common/Button';
 import { Input, TextArea, Select } from '@/components/common/Input';
 import { UploadComponent } from '@/components/common/Upload';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Building2,
@@ -16,6 +16,7 @@ import {
   ArrowLeft,
   CheckCircle
 } from 'lucide-react';
+import { useApplyStore } from '@/stores/applyStore';
 
 const steps = [
   { id: 1, title: '企业信息', description: '填写企业基本信息' },
@@ -41,20 +42,59 @@ const industries = [
   { value: 'other', label: '其他' }
 ];
 
+const typeLabels: Record<string, string> = {
+  technology: '科技/互联网',
+  finance: '金融/保险',
+  retail: '零售/电商',
+  manufacturing: '制造/工业',
+  other: '其他'
+};
+
+const industryLabels: Record<string, string> = {
+  software: '软件开发',
+  saas: 'SaaS服务',
+  platform: '平台运营',
+  ecommerce: '电子商务',
+  fintech: '金融科技',
+  other: '其他'
+};
+
 export function Apply() {
   const navigate = useNavigate();
+  const { applyData, setApplyData, submitApply, reviewStatus } = useApplyStore();
+  
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
-    enterpriseName: '',
-    creditCode: '',
-    enterpriseType: '',
-    industry: '',
-    technicalContact: { name: '', phone: '', email: '' },
-    businessContact: { name: '', phone: '', email: '' },
-    emergencyContact: { name: '', phone: '', email: '' },
-    callbackUrls: [{ url: '', type: 'notification' }],
+    enterpriseName: applyData?.enterpriseName || '',
+    creditCode: applyData?.creditCode || '',
+    enterpriseType: applyData?.enterpriseType || '',
+    industry: applyData?.industry || '',
+    technicalContact: applyData?.technicalContact || { id: '', enterpriseId: '', type: 'technical' as const, name: '', phone: '', email: '' },
+    businessContact: applyData?.businessContact || { id: '', enterpriseId: '', type: 'business' as const, name: '', phone: '', email: '' },
+    emergencyContact: applyData?.emergencyContact || { id: '', enterpriseId: '', type: 'emergency' as const, name: '', phone: '', email: '' },
+    callbackUrls: applyData?.callbackUrls || [{ id: '', enterpriseId: '', url: '', type: 'notification' as const, status: 'active' as const }],
     files: [] as File[]
   });
+
+  useEffect(() => {
+    setApplyData(formData);
+  }, [formData, setApplyData]);
+
+  useEffect(() => {
+    if (reviewStatus === 'pending' && applyData) {
+      setFormData({
+        enterpriseName: applyData.enterpriseName || '',
+        creditCode: applyData.creditCode || '',
+        enterpriseType: applyData.enterpriseType || '',
+        industry: applyData.industry || '',
+        technicalContact: applyData.technicalContact || formData.technicalContact,
+        businessContact: applyData.businessContact || formData.businessContact,
+        emergencyContact: applyData.emergencyContact || formData.emergencyContact,
+        callbackUrls: applyData.callbackUrls || formData.callbackUrls,
+        files: []
+      });
+    }
+  }, [applyData]);
 
   const handleNext = () => {
     if (currentStep < 4) {
@@ -69,13 +109,14 @@ export function Apply() {
   };
 
   const handleSubmit = () => {
+    submitApply();
     navigate('/review');
   };
 
   const addCallbackUrl = () => {
     setFormData({
       ...formData,
-      callbackUrls: [...formData.callbackUrls, { url: '', type: 'notification' }]
+      callbackUrls: [...formData.callbackUrls, { id: '', enterpriseId: '', url: '', type: 'notification' as const, status: 'active' as const }]
     });
   };
 
@@ -299,7 +340,7 @@ export function Apply() {
                           value={item.url}
                           onChange={(e) => {
                             const newUrls = [...formData.callbackUrls];
-                            newUrls[index].url = e.target.value;
+                            newUrls[index] = { ...newUrls[index], url: e.target.value };
                             setFormData({ ...formData, callbackUrls: newUrls });
                           }}
                         />
@@ -314,7 +355,7 @@ export function Apply() {
                         value={item.type}
                         onChange={(e) => {
                           const newUrls = [...formData.callbackUrls];
-                          newUrls[index].type = e.target.value;
+                          newUrls[index] = { ...newUrls[index], type: e.target.value as 'notification' | 'event' | 'data' };
                           setFormData({ ...formData, callbackUrls: newUrls });
                         }}
                       />
