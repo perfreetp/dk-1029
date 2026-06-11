@@ -39,6 +39,7 @@ export function Acceptance() {
   const [checkedItems, setCheckedItems] = useState<string[]>([]);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [submittedTicketId, setSubmittedTicketId] = useState<string | null>(null);
 
   const handleCheckItem = (itemId: string) => {
     if (checkedItems.includes(itemId)) {
@@ -53,26 +54,32 @@ export function Acceptance() {
     
     setSubmitting(true);
     
+    const now = new Date().toISOString();
+    const newTimeline = [
+      ...testingTicket.timeline,
+      {
+        id: `tl-${Date.now()}`,
+        status: 'reviewing',
+        operator: '张明',
+        comment: '提交上线验收申请',
+        timestamp: now
+      }
+    ];
+    
     await updateTicket(testingTicket.id, {
       status: 'reviewing',
-      timeline: [
-        ...testingTicket.timeline,
-        {
-          id: `tl-${Date.now()}`,
-          status: 'reviewing',
-          operator: '张明',
-          comment: '提交上线验收申请',
-          timestamp: new Date().toISOString()
-        }
-      ]
+      timeline: newTimeline
     });
     
+    setSubmittedTicketId(testingTicket.id);
     setSubmitted(true);
     setSubmitting(false);
   };
 
   const handleGoToTicket = () => {
-    if (testingTicket) {
+    if (submittedTicketId) {
+      navigate(`/tickets/${submittedTicketId}`);
+    } else if (testingTicket) {
       navigate(`/tickets/${testingTicket.id}`);
     } else {
       navigate('/tickets');
@@ -121,7 +128,7 @@ export function Acceptance() {
               </div>
               <div className="flex items-center gap-8">
                 <FileText className="w-16 h-16" />
-                <span>工单编号：{testingTicket.id}</span>
+                <span>工单编号：{submittedTicketId}</span>
               </div>
             </div>
             <div className="flex gap-12 mt-24">

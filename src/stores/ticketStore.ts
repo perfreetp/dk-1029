@@ -2,6 +2,13 @@ import { create } from 'zustand';
 import type { Ticket } from '@/types';
 import { mockTickets } from '@/mock/data';
 
+const defaultAssignee = {
+  id: 'staff-default',
+  name: '待分配',
+  avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=default',
+  phone: '待分配'
+};
+
 interface TicketState {
   tickets: Ticket[];
   currentTicket: Ticket | null;
@@ -28,50 +35,62 @@ export const useTicketStore = create<TicketState>((set, get) => ({
   },
   setCurrentTicket: (ticket) => set({ currentTicket: ticket }),
   createTicket: async (data) => {
-    try {
-      const response = await fetch('/api/tickets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      const newTicket = await response.json();
-      set({ tickets: [...get().tickets, newTicket] });
-      return newTicket;
-    } catch {
-      const newTicket = {
-        id: `ticket-${Date.now()}`,
-        ...data,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      } as Ticket;
-      set({ tickets: [...get().tickets, newTicket] });
-      return newTicket;
-    }
+    const now = new Date().toISOString();
+    const newTicket: Ticket = {
+      id: `ticket-${Date.now()}`,
+      enterpriseId: 'ent-001',
+      capabilityId: data.capabilityId || '',
+      capabilityName: data.capabilityName || '',
+      type: data.type || 'access',
+      status: 'submitted',
+      description: data.description || '',
+      attachments: [],
+      timeline: [
+        {
+          id: `tl-${Date.now()}-1`,
+          status: 'submitted',
+          operator: '张明',
+          comment: '工单已提交，等待平台分配对接人',
+          timestamp: now
+        }
+      ],
+      createdAt: now,
+      updatedAt: now
+    };
+    
+    set({ tickets: [...get().tickets, newTicket] });
+    return newTicket;
   },
   updateTicket: async (id, data) => {
-    try {
-      const response = await fetch(`/api/tickets/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      const updatedTicket = await response.json();
-      set({
-        tickets: get().tickets.map(t => t.id === id ? updatedTicket : t),
-        currentTicket: get().currentTicket?.id === id ? updatedTicket : get().currentTicket
-      });
-      return updatedTicket;
-    } catch {
-      const updatedTicket = {
-        ...get().tickets.find(t => t.id === id),
+    const existingTicket = get().tickets.find(t => t.id === id);
+    const now = new Date().toISOString();
+    
+    let updatedTicket: Ticket;
+    
+    if (data.status === 'assigned' && !existingTicket?.assignee) {
+      updatedTicket = {
+        ...existingTicket,
         ...data,
-        updatedAt: new Date().toISOString()
+        assignee: {
+          id: 'staff-001',
+          name: '李对接',
+          avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=liduijie',
+          phone: '13900139000'
+        },
+        updatedAt: now
       } as Ticket;
-      set({
-        tickets: get().tickets.map(t => t.id === id ? updatedTicket : t),
-        currentTicket: get().currentTicket?.id === id ? updatedTicket : get().currentTicket
-      });
-      return updatedTicket;
+    } else {
+      updatedTicket = {
+        ...existingTicket,
+        ...data,
+        updatedAt: now
+      } as Ticket;
     }
+    
+    set({
+      tickets: get().tickets.map(t => t.id === id ? updatedTicket : t),
+      currentTicket: get().currentTicket?.id === id ? updatedTicket : get().currentTicket
+    });
+    return updatedTicket;
   }
 }));

@@ -5,7 +5,7 @@ import { StatusBadge } from '@/components/common/Badge';
 import { Table } from '@/components/common/Table';
 import { Progress, CircularProgress } from '@/components/common/Progress';
 import { Modal } from '@/components/common/Modal';
-import { useBillStore, useFeedbackStore } from '@/stores/dataStore';
+import { useBillStore } from '@/stores/dataStore';
 import { useCapabilityStore } from '@/stores/capabilityStore';
 import { useState } from 'react';
 import {
@@ -22,8 +22,7 @@ import { formatDateTime, formatCurrency } from '@/utils/format';
 import type { Bill } from '@/types';
 
 export function Billing() {
-  const { bills, payBill } = useBillStore();
-  const { quotaData, fetchFeedbacks } = useFeedbackStore();
+  const { bills, quotaData, payBill } = useBillStore();
   const { capabilities, renewCapability, suspendCapability } = useCapabilityStore();
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
   const [showRenewModal, setShowRenewModal] = useState(false);
@@ -99,7 +98,7 @@ export function Billing() {
     {
       key: 'amount',
       title: '金额',
-      align: 'right',
+      align: 'right' as const,
       render: (value: unknown) => (
         <span className="text-sm font-medium text-[#1E3A5F]">
           {formatCurrency(Number(value))}
@@ -121,7 +120,7 @@ export function Billing() {
     {
       key: 'actions',
       title: '操作',
-      align: 'right',
+      align: 'right' as const,
       render: (_, record) => {
         const bill = record as Bill;
         return (
@@ -210,22 +209,26 @@ export function Billing() {
           <CardHeader title="配额概览" />
           <CardContent>
             <div className="grid grid-cols-3 gap-24">
-              {capabilities.filter(cap => cap.status === 'active' || cap.status === 'applied').map((cap) => {
+              {capabilities.filter(cap => 
+                cap.status === 'active' || 
+                cap.status === 'applied' || 
+                cap.status === 'suspended'
+              ).map((cap) => {
                 const quota = quotaData.find(q => q.capabilityId === cap.id);
                 const used = quota?.used || 0;
                 const total = quota?.quota || cap.quota;
                 const isRenewed = renewSuccess === cap.id;
-                const isSuspended = suspendSuccess === cap.id;
+                const isSuspended = suspendSuccess === cap.id || cap.status === 'suspended';
                 
                 return (
-                  <div key={cap.id} className="p-16 bg-[#F7FAFC] rounded-12 relative">
-                    {isRenewed && (
+                  <div key={cap.id} className={`p-16 rounded-12 relative ${cap.status === 'suspended' ? 'bg-gray-100' : 'bg-[#F7FAFC]'}`}>
+                    {(isRenewed || (cap.status === 'active' && renewSuccess !== cap.id && suspendSuccess !== cap.id)) && (
                       <div className="absolute top-8 right-8 px-8 py-4 bg-green-100 text-green-700 text-xs rounded-full flex items-center gap-4">
                         <CheckCircle className="w-12 h-12" />
                         续费成功
                       </div>
                     )}
-                    {isSuspended && (
+                    {isSuspended && !isRenewed && (
                       <div className="absolute top-8 right-8 px-8 py-4 bg-red-100 text-red-700 text-xs rounded-full flex items-center gap-4">
                         <AlertTriangle className="w-12 h-12" />
                         已停用
@@ -263,9 +266,8 @@ export function Billing() {
                         size="sm"
                         icon={<RefreshCw className="w-14 h-14" />}
                         onClick={() => openRenewModal(cap.id)}
-                        disabled={cap.status === 'suspended'}
                       >
-                        续费
+                        {cap.status === 'suspended' ? '重新激活' : '续费'}
                       </Button>
                       <Button
                         variant="ghost"

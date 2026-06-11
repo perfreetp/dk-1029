@@ -38,6 +38,22 @@ export function TicketDetail() {
     );
   }
 
+  const handleAssign = async () => {
+    await updateTicket(ticket.id, {
+      status: 'assigned',
+      timeline: [
+        ...ticket.timeline,
+        {
+          id: `tl-${Date.now()}`,
+          status: 'assigned',
+          operator: '系统',
+          comment: '已分配对接人：李对接',
+          timestamp: new Date().toISOString()
+        }
+      ]
+    });
+  };
+
   const handleSubmitForReview = async () => {
     await updateTicket(ticket.id, {
       status: 'reviewing',
@@ -102,10 +118,10 @@ export function TicketDetail() {
           </CardContent>
         </Card>
 
-        {ticket.assignee && (
-          <Card padding="lg">
-            <CardHeader title="对接人信息" />
-            <CardContent>
+        <Card padding="lg">
+          <CardHeader title="对接人信息" />
+          <CardContent>
+            {ticket.assignee ? (
               <div className="flex items-center gap-16">
                 <img
                   src={ticket.assignee.avatar}
@@ -130,14 +146,27 @@ export function TicketDetail() {
                   联系对接人
                 </Button>
               </div>
-            </CardContent>
-          </Card>
-        )}
+            ) : (
+              <div className="text-center py-16">
+                <div className="text-sm text-gray-500 mb-12">暂未分配对接人</div>
+                {ticket.status === 'submitted' && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleAssign}
+                  >
+                    申请分配对接人
+                  </Button>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <Card padding="lg">
           <CardHeader title="工单描述" />
           <CardContent>
-            <p className="text-sm text-gray-600">{ticket.description}</p>
+            <p className="text-sm text-gray-600">{ticket.description || '暂无描述'}</p>
           </CardContent>
         </Card>
 
@@ -150,6 +179,15 @@ export function TicketDetail() {
 
         <div className="flex items-center justify-between pt-16 border-t border-gray-100">
           <div className="flex items-center gap-12">
+            {ticket.status === 'submitted' && !ticket.assignee && (
+              <Button
+                variant="secondary"
+                icon={<User className="w-16 h-16" />}
+                onClick={handleAssign}
+              >
+                申请分配对接人
+              </Button>
+            )}
             {ticket.status === 'testing' && (
               <Button
                 variant="secondary"
@@ -171,7 +209,7 @@ export function TicketDetail() {
             {ticket.status === 'reviewing' && (
               <div className="flex items-center gap-8 text-sm text-[#38B2AC]">
                 <CheckCircle className="w-16 h-16" />
-                <span>验收审核中，请等待</span>
+                <span>验收审核中，请等待平台审核</span>
               </div>
             )}
             {ticket.status === 'approved' && (
