@@ -28,8 +28,9 @@ const checklistItems = [
 
 export function Acceptance() {
   const navigate = useNavigate();
-  const { tickets, updateTicket } = useTicketStore();
+  const { tickets, updateTicket, submittedTicketId, setSubmittedTicketId } = useTicketStore();
   const testingTicket = tickets.find(t => t.status === 'testing');
+  const submittedFromStore = tickets.find(t => t.id === submittedTicketId && t.status === 'reviewing');
   
   const [formData, setFormData] = useState({
     serverUrl: '',
@@ -37,9 +38,8 @@ export function Acceptance() {
     ipWhitelist: ''
   });
   const [checkedItems, setCheckedItems] = useState<string[]>([]);
-  const [submitted, setSubmitted] = useState(false);
+  const [submitted, setSubmitted] = useState(!!submittedFromStore);
   const [submitting, setSubmitting] = useState(false);
-  const [submittedTicketId, setSubmittedTicketId] = useState<string | null>(null);
 
   const handleCheckItem = (itemId: string) => {
     if (checkedItems.includes(itemId)) {

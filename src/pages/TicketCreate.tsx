@@ -31,9 +31,11 @@ export function TicketCreate() {
   });
 
   const handleSubmit = async () => {
+    const selectedCapability = capabilities.find(c => c.id === formData.capabilityId);
     const newTicket = await createTicket({
       capabilityId: formData.capabilityId,
-      type: formData.type,
+      capabilityName: selectedCapability?.name || '',
+      type: formData.type as 'access' | 'upgrade' | 'maintenance' | 'cancel',
       description: formData.description
     });
     navigate(`/tickets/${newTicket.id}`);

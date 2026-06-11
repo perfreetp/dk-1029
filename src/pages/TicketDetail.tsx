@@ -121,7 +121,7 @@ export function TicketDetail() {
         <Card padding="lg">
           <CardHeader title="对接人信息" />
           <CardContent>
-            {ticket.assignee ? (
+            {ticket.assignee && ticket.assignee.name !== '待分配' ? (
               <div className="flex items-center gap-16">
                 <img
                   src={ticket.assignee.avatar}
@@ -147,17 +147,25 @@ export function TicketDetail() {
                 </Button>
               </div>
             ) : (
-              <div className="text-center py-16">
-                <div className="text-sm text-gray-500 mb-12">暂未分配对接人</div>
-                {ticket.status === 'submitted' && (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={handleAssign}
-                  >
-                    申请分配对接人
-                  </Button>
-                )}
+              <div className="flex items-center gap-16 p-16 bg-yellow-50 rounded-8 border border-yellow-200">
+                <div className="w-48 h-48 rounded-full bg-gray-200 flex items-center justify-center">
+                  <User className="w-24 h-24 text-gray-400" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-8">
+                    <span className="text-sm font-medium text-gray-600">平台对接人</span>
+                    <span className="px-8 py-2 bg-yellow-100 text-yellow-700 text-xs rounded-4">待分配</span>
+                  </div>
+                  <div className="flex items-center gap-8 mt-8">
+                    <Phone className="w-16 h-16 text-gray-400" />
+                    <span className="text-sm text-gray-400">
+                      {ticket.assignee?.phone || '等待平台分配对接人'}
+                    </span>
+                  </div>
+                </div>
+                <Button variant="secondary" size="sm" onClick={handleAssign}>
+                  催促分配
+                </Button>
               </div>
             )}
           </CardContent>

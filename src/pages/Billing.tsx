@@ -22,15 +22,13 @@ import { formatDateTime, formatCurrency } from '@/utils/format';
 import type { Bill } from '@/types';
 
 export function Billing() {
-  const { bills, quotaData, payBill } = useBillStore();
+  const { bills, quotaData, payBill, renewHistory } = useBillStore();
   const { capabilities, renewCapability, suspendCapability } = useCapabilityStore();
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
   const [showRenewModal, setShowRenewModal] = useState(false);
   const [showSuspendModal, setShowSuspendModal] = useState(false);
   const [renewPeriod, setRenewPeriod] = useState(1);
   const [selectedCapabilityId, setSelectedCapabilityId] = useState<string | null>(null);
-  const [renewSuccess, setRenewSuccess] = useState<string | null>(null);
-  const [suspendSuccess, setSuspendSuccess] = useState<string | null>(null);
 
   const unpaidBills = bills.filter(b => b.status === 'unpaid' || b.status === 'overdue');
   const totalAmount = unpaidBills.reduce((sum, b) => sum + b.amount, 0);
@@ -43,8 +41,6 @@ export function Billing() {
   const handleRenew = () => {
     if (selectedCapabilityId) {
       renewCapability(selectedCapabilityId, renewPeriod);
-      setRenewSuccess(selectedCapabilityId);
-      setTimeout(() => setRenewSuccess(null), 3000);
       setShowRenewModal(false);
     }
   };
@@ -52,8 +48,6 @@ export function Billing() {
   const handleSuspend = () => {
     if (selectedCapabilityId) {
       suspendCapability(selectedCapabilityId);
-      setSuspendSuccess(selectedCapabilityId);
-      setTimeout(() => setSuspendSuccess(null), 3000);
       setShowSuspendModal(false);
     }
   };
@@ -157,7 +151,9 @@ export function Billing() {
               </div>
               <div>
                 <div className="text-xs text-gray-400">已上线能力</div>
-                <div className="text-xl font-bold text-[#1E3A5F]">{quotaData.length}</div>
+                <div className="text-xl font-bold text-[#1E3A5F]">
+                  {capabilities.filter(c => c.status === 'active' || c.status === 'applied').length}
+                </div>
               </div>
             </div>
           </Card>
@@ -217,18 +213,17 @@ export function Billing() {
                 const quota = quotaData.find(q => q.capabilityId === cap.id);
                 const used = quota?.used || 0;
                 const total = quota?.quota || cap.quota;
-                const isRenewed = renewSuccess === cap.id;
-                const isSuspended = suspendSuccess === cap.id || cap.status === 'suspended';
+                const latestRenew = renewHistory.find(r => r.capabilityId === cap.id);
                 
                 return (
                   <div key={cap.id} className={`p-16 rounded-12 relative ${cap.status === 'suspended' ? 'bg-gray-100' : 'bg-[#F7FAFC]'}`}>
-                    {(isRenewed || (cap.status === 'active' && renewSuccess !== cap.id && suspendSuccess !== cap.id)) && (
+                    {latestRenew && (
                       <div className="absolute top-8 right-8 px-8 py-4 bg-green-100 text-green-700 text-xs rounded-full flex items-center gap-4">
                         <CheckCircle className="w-12 h-12" />
-                        续费成功
+                        续费{latestRenew.period}个月
                       </div>
                     )}
-                    {isSuspended && !isRenewed && (
+                    {cap.status === 'suspended' && !latestRenew && (
                       <div className="absolute top-8 right-8 px-8 py-4 bg-red-100 text-red-700 text-xs rounded-full flex items-center gap-4">
                         <AlertTriangle className="w-12 h-12" />
                         已停用

@@ -9,6 +9,9 @@ interface BillState {
   loading: boolean;
   fetchBills: () => Promise<void>;
   payBill: (id: string) => Promise<void>;
+  renewQuota: (capabilityId: string, name: string, additionalQuota: number) => void;
+  addRenewRecord: (capabilityId: string, capabilityName: string, period: number, amount: number) => void;
+  renewHistory: Array<{ capabilityId: string; capabilityName: string; period: number; amount: number; renewedAt: string }>;
 }
 
 export const useBillStore = create<BillState>()(
@@ -17,6 +20,7 @@ export const useBillStore = create<BillState>()(
       bills: mockBills,
       quotaData: mockQuotaData,
       loading: false,
+      renewHistory: [],
       fetchBills: async () => {
         set({ loading: true });
         try {
@@ -40,6 +44,33 @@ export const useBillStore = create<BillState>()(
           );
           set({ bills });
         }
+      },
+      renewQuota: (capabilityId, name, additionalQuota) => {
+        const existingQuota = get().quotaData.find(q => q.capabilityId === capabilityId);
+        if (existingQuota) {
+          set({
+            quotaData: get().quotaData.map(q => 
+              q.capabilityId === capabilityId 
+                ? { ...q, quota: q.quota + additionalQuota }
+                : q
+            )
+          });
+        } else {
+          set({
+            quotaData: [...get().quotaData, { capabilityId, name, quota: additionalQuota, used: 0 }]
+          });
+        }
+      },
+      addRenewRecord: (capabilityId, capabilityName, period, amount) => {
+        set({
+          renewHistory: [...get().renewHistory, { 
+            capabilityId, 
+            capabilityName, 
+            period, 
+            amount, 
+            renewedAt: new Date().toISOString() 
+          }]
+        });
       }
     }),
     {
